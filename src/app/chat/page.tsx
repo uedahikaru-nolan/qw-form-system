@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { ChatMessage, SiteType, SiteInfo } from '@/types'
 
@@ -48,7 +48,7 @@ const QUESTIONS_BY_TYPE: Record<SiteType, string[]> = {
   ]
 }
 
-export default function ChatPage() {
+function ChatPageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const siteType = searchParams.get('type') as SiteType
@@ -65,16 +65,9 @@ export default function ChatPage() {
   })
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const questions = QUESTIONS_BY_TYPE[siteType] || []
+  const questions = useMemo(() => QUESTIONS_BY_TYPE[siteType] || [], [siteType])
 
-  useEffect(() => {
-    if (messages.length === 0 && questions.length > 0) {
-      // AIによる柔軟な最初の挨拶を生成
-      generateInitialGreeting()
-    }
-  }, [])
-
-  const generateInitialGreeting = async () => {
+  const generateInitialGreeting = useCallback(async () => {
     setIsLoading(true)
     try {
       const response = await fetch('/api/chat', {
@@ -113,7 +106,14 @@ export default function ChatPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [siteType, industry, questions])
+
+  useEffect(() => {
+    if (messages.length === 0 && questions.length > 0) {
+      // AIによる柔軟な最初の挨拶を生生成
+      generateInitialGreeting()
+    }
+  }, [messages.length, questions.length, generateInitialGreeting])
 
   useEffect(() => {
     scrollToBottom()
@@ -287,10 +287,15 @@ export default function ChatPage() {
     ]
     
     if (questionKeys[questionIndex]) {
-      updatedInfo.basicInfo[questionKeys[questionIndex] as keyof typeof updatedInfo.basicInfo] = 
-        questionKeys[questionIndex] === 'photos' || questionKeys[questionIndex] === 'reservation' 
-          ? answerLower.includes('はい') || answerLower.includes('yes') || answerLower.includes('お願い')
-          : answer
+      const key = questionKeys[questionIndex] as keyof typeof updatedInfo.basicInfo
+      
+      if (key === 'photos' || key === 'reservation') {
+        // boolean型のフィールド
+        (updatedInfo.basicInfo as any)[key] = answerLower.includes('はい') || answerLower.includes('yes') || answerLower.includes('お願い')
+      } else {
+        // string型のフィールド
+        (updatedInfo.basicInfo as any)[key] = answer
+      }
     }
     
     setSiteInfo(updatedInfo)
@@ -471,5 +476,18 @@ export default function ChatPage() {
         </div>
       </main>
     </div>
+  )
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <p className="text-xl text-gray-600">ページを読み込み中...</p>
+      </div>
+    </div>}>
+      <ChatPageContent />
+    </Suspense>
   )
 }

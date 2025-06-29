@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ChatMessage } from '@/types'
 import EditableSummary from '@/components/summary/EditableSummary'
 
-export default function SummaryPage() {
+function SummaryPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const siteType = searchParams.get('type') || 'HP'
@@ -95,7 +95,8 @@ export default function SummaryPage() {
           
           // APIクォータエラーの場合は、チャット履歴から簡易的な要約を生成
           if (response.status === 500 && errorData.error) {
-            const fallbackSummary = generateFallbackSummary(chatHistory, siteType, industry)
+            const parsedHistory = JSON.parse(chatHistory)
+            const fallbackSummary = generateFallbackSummary(parsedHistory, siteType, industry)
             setSummary(fallbackSummary)
             return
           }
@@ -489,5 +490,18 @@ export default function SummaryPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function SummaryPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <p className="text-xl text-gray-600">ページを読み込み中...</p>
+      </div>
+    </div>}>
+      <SummaryPageContent />
+    </Suspense>
   )
 }
