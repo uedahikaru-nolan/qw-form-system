@@ -2,12 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { SiteInfo, PageInfo, SiteType } from '@/types'
 
-const openai = new OpenAI({
+const openai = process.env.OPENAI_API_KEY ? new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
-})
+}) : null
 
 export async function POST(request: NextRequest) {
   try {
+    if (!openai) {
+      return NextResponse.json(
+        { error: 'OpenAI API key is not configured' },
+        { status: 500 }
+      )
+    }
+
     const { siteInfo, chatHistory, summary } = await request.json()
     
     const prompt = createEnhancedPrompt(siteInfo, chatHistory, summary)
