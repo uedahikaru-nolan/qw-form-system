@@ -87,3 +87,17 @@ OpenAI API error: Error: 429 You exceeded your current quota, please check your 
    Reload env: .env.local
  ✓ Compiled in 93ms (279 modules)
  ✓ Compiled in 37ms (279 modules)
+ ⚠ Found a change in next.config.js. Restarting the server to apply the changes...
+   ▲ Next.js 15.3.4
+   - Local:        http://localhost:3003
+   - Network:      http://192.168.1.12:3003
+   - Environments: .env.local
+
+ ✓ Starting...
+
+   We detected TypeScript in your project and reconfigured your tsconfig.json file for you.
+   The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
+
+   	- include was updated to add 'out/types/**/*.ts'
+
+ ✓ Ready in 1034ms
