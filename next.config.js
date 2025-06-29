@@ -1,8 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
   trailingSlash: true,
-  distDir: 'out'
+  distDir: 'out',
+  env: {
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
+  }
 }
 
 module.exports = nextConfig

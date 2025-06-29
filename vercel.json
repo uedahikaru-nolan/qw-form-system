@@ -1,3 +1,7 @@
 {
-  "outputDirectory": "out"
+  "functions": {
+    "src/app/api/**/*.ts": {
+      "runtime": "nodejs20.x"
+    }
+  }
 }

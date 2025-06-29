@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 
-export const dynamic = 'force-static'
-
 export async function POST(request: NextRequest) {
   try {
     const { to, content, isAdmin } = await request.json()
