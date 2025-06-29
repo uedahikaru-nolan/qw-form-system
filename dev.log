@@ -1,0 +1,89 @@
+
+> qw-form-system@1.0.0 dev
+> next dev
+
+ ⚠ Port 3000 is in use, using available port 3003 instead.
+   ▲ Next.js 15.3.4
+   - Local:        http://localhost:3003
+   - Network:      http://192.168.1.12:3003
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1091ms
+ ✓ Compiled /api/summarize-chat in 461ms (464 modules)
+Chat summarization error: Error: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.
+    at async POST (src/app/api/summarize-chat/route.ts:139:23)
+  137 |     ).join('\n\n')
+  138 |
+> 139 |     const completion = await openai.chat.completions.create({
+      |                       ^
+  140 |       model: 'gpt-3.5-turbo-16k',
+  141 |       messages: [
+  142 |         { {
+  status: 429,
+  headers: Headers {
+    date: 'Sat, 28 Jun 2025 05:16:43 GMT',
+    'content-type': 'application/json; charset=utf-8',
+    'content-length': '337',
+    connection: 'keep-alive',
+    vary: 'Origin',
+    'x-request-id': 'req_c71f0166424f779e84793fdfc4916ce0',
+    'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+    'cf-cache-status': 'DYNAMIC',
+    'set-cookie': '__cf_bm=hNXw0.IgEb5S6PaOTdy9FFQB3oEzyeEHtneeTHK0Qxw-1751087803-1.0.1.1-LLtYKY6HjrjM6DvQJY2.0dmO40C_NTpdoGb8ctbBFzt80EG68.0plzI_kPQ1WPgSXSKrDY3K0cLngbEBNtnl52b1JlwiUFnBgj.Jq6Vb8y0; path=/; expires=Sat, 28-Jun-25 05:46:43 GMT; domain=.api.openai.com; HttpOnly; Secure; SameSite=None, _cfuvid=gpNLNEKaKIEsI0krPRH.PDjJ5HEslhtlKVE88Ui6f5I-1751087803328-0.0.1.1-604800000; path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None',
+    'x-content-type-options': 'nosniff',
+    server: 'cloudflare',
+    'cf-ray': '956ab6b0693ce3a0-NRT',
+    'alt-svc': 'h3=":443"; ma=86400'
+  },
+  requestID: 'req_c71f0166424f779e84793fdfc4916ce0',
+  error: [Object],
+  code: 'insufficient_quota',
+  param: null,
+  type: 'insufficient_quota'
+}
+ POST /api/summarize-chat 500 in 3353ms
+OpenAI API error: Error: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.
+    at async POST (src/app/api/chat/route.ts:56:23)
+  54 |     const systemPrompt = SYSTEM_PROMPTS[siteType as SiteType]
+  55 |     
+> 56 |     const completion = await openai.chat.completions.create({
+     |                       ^
+  57 |       model: 'gpt-3.5-turbo',
+  58 |       messages: [
+  59 |         { {
+  status: 429,
+  headers: Headers {
+    date: 'Sat, 28 Jun 2025 05:16:43 GMT',
+    'content-type': 'application/json; charset=utf-8',
+    'content-length': '337',
+    connection: 'keep-alive',
+    vary: 'Origin',
+    'x-request-id': 'req_999f794eb7d511c9a390ddbe3f09b66b',
+    'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+    'cf-cache-status': 'DYNAMIC',
+    'set-cookie': '__cf_bm=jVe7YQ6DHuiLXQHk7sug9iMlnpCEKROu9MHhpU3LIMg-1751087803-1.0.1.1-3XdoJqWMBK6SiYkjAkF4nbWZhCjDJEg4JAFLXAkxzv3IlWXtDqCp10okRQusqMj7jFMny7cGl53LeYMGMdT2FltFzWxMuAqFukJXTKsKagY; path=/; expires=Sat, 28-Jun-25 05:46:43 GMT; domain=.api.openai.com; HttpOnly; Secure; SameSite=None, _cfuvid=QJzs7f3KoisZ1bzG.26AEiavudX6oPS9HJccwJx3NoE-1751087803339-0.0.1.1-604800000; path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None',
+    'x-content-type-options': 'nosniff',
+    server: 'cloudflare',
+    'cf-ray': '956ab6ae8efaeb7c-NRT',
+    'alt-svc': 'h3=":443"; ma=86400'
+  },
+  requestID: 'req_999f794eb7d511c9a390ddbe3f09b66b',
+  error: [Object],
+  code: 'insufficient_quota',
+  param: null,
+  type: 'insufficient_quota'
+}
+ POST /api/chat 500 in 3379ms
+ ✓ Compiled in 19ms
+   Reload env: .env.local
+ ✓ Compiled in 72ms (279 modules)
+ ✓ Compiled in 32ms (279 modules)
+ ✓ Compiled in 53ms (279 modules)
+ ✓ Compiled in 80ms (279 modules)
+ ✓ Compiled in 25ms (279 modules)
+ ✓ Compiled in 68ms (279 modules)
+ ✓ Compiled in 26ms (279 modules)
+   Reload env: .env.local
+ ✓ Compiled in 93ms (279 modules)
+ ✓ Compiled in 37ms (279 modules)
