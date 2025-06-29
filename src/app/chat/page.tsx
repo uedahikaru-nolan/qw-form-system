@@ -110,7 +110,7 @@ function ChatPageContent() {
 
   useEffect(() => {
     if (messages.length === 0 && questions.length > 0) {
-      // AIによる柔軟な最初の挨拶を生生成
+      // AIによる柔軟な最初の挨拶を生成
       generateInitialGreeting()
     }
   }, [messages.length, questions.length, generateInitialGreeting])
@@ -261,7 +261,7 @@ function ChatPageContent() {
     // 名称の抽出
     if (answer.includes('店') || answer.includes('会社') || answer.includes('名')) {
       const nameMatch = answer.match(/[「『]?([^」』。、]+)[」』]?(?:です|といいます|と申します)?/)
-      if (nameMatch) updatedInfo.basicInfo.name = nameMatch[1]
+      if (nameMatch && nameMatch[1]) updatedInfo.basicInfo.name = nameMatch[1]
     }
     
     // 住所の抽出
@@ -271,7 +271,7 @@ function ChatPageContent() {
     
     // 電話番号の抽出
     const phoneMatch = answer.match(/\d{2,4}-\d{2,4}-\d{3,4}/)
-    if (phoneMatch) {
+    if (phoneMatch && phoneMatch[0]) {
       updatedInfo.basicInfo.phone = phoneMatch[0]
     }
     
