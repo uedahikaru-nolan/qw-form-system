@@ -117,3 +117,11 @@ OpenAI API error: Error: 429 You exceeded your current quota, please check your 
 
  ✓ Starting...
  ✓ Ready in 999ms
+ ⚠ Found a change in next.config.js. Restarting the server to apply the changes...
+   ▲ Next.js 15.3.4
+   - Local:        http://localhost:3003
+   - Network:      http://192.168.1.12:3003
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1002ms
