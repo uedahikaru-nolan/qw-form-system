@@ -59,32 +59,43 @@ export default function CompletePage() {
             </svg>
           </div>
 
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">
-            送信が完了しました！
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">
+            送信ありがとうございます。
           </h1>
           
-          <p className="text-gray-600 mb-8">
-            AIが整理した情報を管理者へ送信しました。<br />
-            {userEmail && (
-              <>
-                ご入力いただいたメールアドレス：<br />
-                <span className="font-semibold">{userEmail}</span><br />
-              </>
-            )}
-            {referenceUrls.length > 0 && (
-              <>
-                <br />
-                参考サイト：<br />
-                {referenceUrls.map((url, index) => (
-                  <div key={index} className="text-sm">
-                    {index + 1}. <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">{url}</a>
-                  </div>
-                ))}
-                <br />
-              </>
-            )}
-            内容を確認次第、ご連絡させていただきます。
-          </p>
+          <div className="text-gray-600 mb-8 text-left">
+            <p className="mb-6">
+              このたびは弊社ヒアリングフォームへご入力いただき、誠にありがとうございます。<br />
+              ご入力いただいた内容を確認のうえ、3営業日以内に担当者よりご連絡させていただきます。
+            </p>
+
+            <div className="mb-6">
+              <h2 className="font-semibold mb-2">■ ご入力内容</h2>
+              {referenceUrls.length > 0 && (
+                <div className="mb-2">
+                  参考サイト：
+                  {referenceUrls.map((url, index) => (
+                    <div key={index} className="ml-4">
+                      <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">{url}</a>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {userEmail && (
+                <div>
+                  ご連絡先メールアドレス： <span className="font-medium">{userEmail}</span>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <h2 className="font-semibold mb-2">■ 今後の流れ</h2>
+              <div className="ml-4">
+                <p className="mb-1">内容確認（1営業日）</p>
+                <p>担当者よりご連絡・追加ヒアリング（1～2営業日）</p>
+              </div>
+            </div>
+          </div>
 
           <div className="space-y-4">
             <button

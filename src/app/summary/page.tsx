@@ -211,7 +211,7 @@ function SummaryPageContent() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          to: 'h_ueda@nolan.co.jp',
+          to: 'h_ueda@nolan.co.jp,qw-form-notification-aaaaqumooqghb4dkaivgoquwfi@nolan-co-jp.slack.com',
           content: emailContent,
           isAdmin: true
         })

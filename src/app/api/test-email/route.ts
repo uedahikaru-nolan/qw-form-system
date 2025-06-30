@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     // テストメール送信
     const { data, error } = await resend.emails.send({
       from: 'AIサイト作成フォーム <onboarding@resend.dev>',
-      to: ['h_ueda@nolan.co.jp'],
+      to: ['h_ueda@nolan.co.jp', 'qw-form-notification-aaaaqumooqghb4dkaivgoquwfi@nolan-co-jp.slack.com'],
       subject: 'テストメール - AIサイト作成フォーム',
       text: 'これはテストメールです。正常に動作しています。',
       html: '<p>これは<strong>テストメール</strong>です。正常に動作しています。</p>'

@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       
       const emailConfig = isAdmin ? {
         from: 'AIサイト作成フォーム <onboarding@resend.dev>',
-        to: [to],
+        to: to.includes(',') ? to.split(',').map((email: string) => email.trim()) : [to],
         subject: `【AIサイト作成フォーム】新規送信内容 - ${new Date().toLocaleDateString('ja-JP')}`,
         text: content,
         html: `
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
         `
       } : {
         from: 'AIサイト作成フォーム <onboarding@resend.dev>',
-        to: [to],
+        to: to.includes(',') ? to.split(',').map((email: string) => email.trim()) : [to],
         subject: 'AIサイト作成フォーム - お申し込みありがとうございます',
         text: content,
         html: `
