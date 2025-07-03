@@ -352,20 +352,20 @@ function SummaryPageContent() {
         </div>
       )}
       
-      <div className="w-[80vw] mx-auto px-4">
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">
+      <div className="max-w-6xl mx-auto px-4">
+        <div className="bg-white rounded-lg shadow-lg p-4 md:p-8">
+          <h1 className="text-xl md:text-3xl font-bold text-gray-800 mb-2">
             情報の整理が完了しました
           </h1>
-          <p className="text-gray-600 mb-8">
+          <p className="text-sm md:text-base text-gray-600 mb-4 md:mb-8">
             以下の内容で{industry}の{siteType === 'HP' ? 'ホームページ' : siteType === 'LP' ? 'ランディングページ' : siteType === 'PORTFOLIO' ? 'ポートフォリオサイト' : 'Webシステム'}を作成します
           </p>
         </div>
 
         {/* メールアドレス入力フォーム */}
-        <div className="bg-white rounded-lg shadow-lg p-6 my-6">
-          <h2 className="text-xl font-semibold mb-4">連絡先メールアドレス</h2>
-          <p className="text-gray-600 text-sm mb-4">
+        <div className="bg-white rounded-lg shadow-lg p-4 md:p-6 my-4 md:my-6">
+          <h2 className="text-lg md:text-xl font-semibold mb-3 md:mb-4">連絡先メールアドレス</h2>
+          <p className="text-gray-600 text-xs md:text-sm mb-3 md:mb-4">
             進捗状況をお知らせするメールアドレスをご入力ください。
           </p>
           <div className="space-y-2">
@@ -389,9 +389,9 @@ function SummaryPageContent() {
         </div>
 
         {/* 参考サイトURL入力フォーム */}
-        <div className="bg-white rounded-lg shadow-lg p-6 my-6">
-          <h2 className="text-xl font-semibold mb-4">参考にしたいサイト</h2>
-          <p className="text-gray-600 text-sm mb-4">
+        <div className="bg-white rounded-lg shadow-lg p-4 md:p-6 my-4 md:my-6">
+          <h2 className="text-lg md:text-xl font-semibold mb-3 md:mb-4">参考にしたいサイト</h2>
+          <p className="text-gray-600 text-xs md:text-sm mb-3 md:mb-4">
             デザインや機能の参考にしたいサイトのURLを入力してください（最低1つ必須）。
           </p>
           <div className="space-y-3">
@@ -446,14 +446,14 @@ function SummaryPageContent() {
           disabled={isProcessing}
         />
 
-        <div className="bg-white rounded-lg shadow-lg p-8">
+        <div className="bg-white rounded-lg shadow-lg p-4 md:p-8">
 
-          <div className="flex justify-between items-center pt-6 border-t">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-4 md:pt-6 border-t">
             <button
               onClick={handleBack}
-              className="px-6 py-3 text-gray-600 hover:text-gray-800 flex items-center gap-2"
+              className="w-full md:w-auto px-4 md:px-6 py-2 md:py-3 text-gray-600 hover:text-gray-800 flex items-center justify-center gap-2 text-sm md:text-base border md:border-0 rounded-lg md:rounded-none"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 md:w-5 h-4 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
               チャットに戻る
@@ -462,7 +462,7 @@ function SummaryPageContent() {
             <button
               onClick={handleProceed}
               disabled={isProcessing}
-              className={`px-8 py-3 rounded-lg flex items-center gap-2 font-semibold transition-all ${
+              className={`w-full md:w-auto px-6 md:px-8 py-3 rounded-lg flex items-center justify-center gap-2 font-semibold transition-all text-sm md:text-base ${
                 isProcessing 
                   ? 'bg-gray-400 cursor-not-allowed' 
                   : 'bg-blue-600 text-white hover:bg-blue-700'
@@ -485,7 +485,7 @@ function SummaryPageContent() {
           </div>
         </div>
 
-        <div className="mt-6 text-center text-sm text-gray-500">
+        <div className="mt-4 md:mt-6 text-center text-xs md:text-sm text-gray-500 px-4">
           ※ メールにはAIが整理した情報と提案内容が含まれます
         </div>
       </div>

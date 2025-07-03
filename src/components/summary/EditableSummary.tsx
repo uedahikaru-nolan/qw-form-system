@@ -223,29 +223,29 @@ export default function EditableSummary({ summary, onUpdate, disabled = false }:
     <div className="space-y-6">
       {sections.map((section, index) => (
         <div key={index} className="border rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow">
-          <div className="p-6">
-            <h3 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b">
+          <div className="p-4 md:p-6">
+            <h3 className="text-lg md:text-2xl font-bold text-gray-900 mb-3 md:mb-4 pb-2 border-b">
               {section.title.replace(' - ', ' › ')}
             </h3>
             
             {!disabled ? (
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 {/* 左側: プレビュー */}
-                <div className="bg-gray-50 p-4 rounded-lg h-fit">
-                  <h4 className="text-sm font-medium text-gray-700 mb-3 border-b pb-2">プレビュー</h4>
-                  <div className="mt-3">
+                <div className="bg-gray-50 p-3 md:p-4 rounded-lg h-fit order-2 md:order-1">
+                  <h4 className="text-xs md:text-sm font-medium text-gray-700 mb-2 md:mb-3 border-b pb-1 md:pb-2">プレビュー</h4>
+                  <div className="mt-2 md:mt-3 text-sm md:text-base">
                     {renderPreview(editingContent[index] || '')}
                   </div>
                 </div>
                 
                 {/* 右側: 編集エリア */}
-                <div className="space-y-3">
+                <div className="space-y-2 md:space-y-3 order-1 md:order-2">
                   <div className="text-xs text-gray-500">
                     ※ 各行で改行してください。「- 」で始まる行は箇条書きとして表示されます。
                   </div>
                   <textarea
-                    className="w-full p-3 border rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-                    rows={Math.max(12, editingContent[index]?.split('\n').length + 2 || 12)}
+                    className="w-full p-2 md:p-3 border rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-xs md:text-sm"
+                    rows={Math.max(8, editingContent[index]?.split('\n').length + 2 || 8)}
                     value={editingContent[index] || ''}
                     onChange={(e) => handleContentChange(index, e.target.value)}
                     placeholder="例：\n- **ホーム** - 第一印象を決める重要なページ\n  - ヒーローセクション\n    - キャッチコピー: 「心を込めた料理でおもてなし」\n\n- **飲食店について** - 信頼性を高めるページ\n  - 店舗の理念\n  - シェフの紹介"
@@ -257,7 +257,7 @@ export default function EditableSummary({ summary, onUpdate, disabled = false }:
                 </div>
               </div>
             ) : (
-              <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="bg-gray-50 p-3 md:p-4 rounded-lg text-sm md:text-base">
                 {renderPreview(section.content.join('\n'))}
               </div>
             )}
@@ -265,34 +265,34 @@ export default function EditableSummary({ summary, onUpdate, disabled = false }:
           
           {/* AI編集リクエストセクション */}
           {!disabled && (
-            <div className="border-t bg-purple-50/50 p-6">
-              <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-1">
-                <Sparkles className="w-4 h-4 text-purple-600" />
+            <div className="border-t bg-purple-50/50 p-4 md:p-6">
+              <h4 className="text-xs md:text-sm font-medium text-gray-700 mb-2 md:mb-3 flex items-center gap-1">
+                <Sparkles className="w-3 md:w-4 h-3 md:h-4 text-purple-600" />
                 AIに編集をお願いする
               </h4>
-              <div className="flex gap-3">
+              <div className="flex flex-col md:flex-row gap-2 md:gap-3">
                 <textarea
                   value={aiRequest[index] || ''}
                   onChange={(e) => setAiRequest(prev => ({ ...prev, [index]: e.target.value }))}
                   placeholder="例: ビジョンとミッションも追加してください"
-                  className="flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                  className="flex-1 px-2 md:px-3 py-2 border rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
                   rows={2}
                   disabled={isProcessing[index]}
                 />
                 <button
                   onClick={() => handleAiEdit(index)}
                   disabled={!aiRequest[index]?.trim() || isProcessing[index]}
-                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center gap-2 text-sm"
+                  className="px-3 md:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 text-xs md:text-sm"
                 >
                   {isProcessing[index] ? (
                     <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      <span>処理中...</span>
+                      <div className="animate-spin rounded-full h-3 md:h-4 w-3 md:w-4 border-b-2 border-white"></div>
+                      <span className="hidden md:inline">処理中...</span>
                     </>
                   ) : (
                     <>
-                      <Send className="w-4 h-4" />
-                      <span>送信</span>
+                      <Send className="w-3 md:w-4 h-3 md:h-4" />
+                      <span className="hidden md:inline">送信</span>
                     </>
                   )}
                 </button>

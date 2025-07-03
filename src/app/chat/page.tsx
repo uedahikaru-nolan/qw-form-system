@@ -65,6 +65,7 @@ function ChatPageContent() {
   })
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const questions = useMemo(() => QUESTIONS_BY_TYPE[siteType] || [], [siteType])
 
   const generateInitialGreeting = useCallback(async () => {
@@ -118,6 +119,14 @@ function ChatPageContent() {
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  useEffect(() => {
+    // テキストエリアの高さを内容に合わせて自動調整
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
+    }
+  }, [userInput])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -371,9 +380,9 @@ function ChatPageContent() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-4xl mx-auto w-full p-4">
-        <div className="bg-white rounded-lg shadow h-full flex flex-col">
-          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+      <main className="flex-1 max-w-4xl mx-auto w-full p-4 pb-24">
+        <div className="bg-white rounded-lg shadow h-full">
+          <div className="overflow-y-auto p-6 space-y-4">
             {messages.map((message) => (
               <div
                 key={message.id}
@@ -404,8 +413,14 @@ function ChatPageContent() {
             <div ref={messagesEndRef} />
           </div>
 
+        </div>
+      </main>
+
+      {/* フローティング入力フォーム */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg">
+        <div className="max-w-4xl mx-auto">
           {(currentQuestionIndex === 2 || currentQuestionIndex === 6 || currentQuestionIndex === 7) && (
-            <div className="px-6 pb-2">
+            <div className="px-6 pt-4">
               <div className="flex gap-2">
                 <button
                   onClick={() => handleQuickAnswer('はい')}
@@ -424,7 +439,7 @@ function ChatPageContent() {
           )}
 
           {currentQuestionIndex === 4 && siteType === 'HP' && (
-            <div className="px-6 pb-2">
+            <div className="px-6 pt-4">
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => handleQuickAnswer('イタリアン')}
@@ -454,15 +469,23 @@ function ChatPageContent() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="p-6 border-t">
+          <form onSubmit={handleSubmit} className="p-6">
             <div className="flex gap-2">
-              <input
-                type="text"
+              <textarea
+                ref={textareaRef}
                 value={userInput}
                 onChange={(e) => setUserInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && e.shiftKey) {
+                    // Shift+Enterで改行を許可
+                    return
+                  }
+                }}
                 placeholder="回答を入力してください..."
-                className="flex-1 p-3 border rounded-lg focus:outline-none focus:border-blue-500"
+                className="flex-1 p-3 border rounded-lg focus:outline-none focus:border-blue-500 resize-none overflow-hidden"
+                style={{ minHeight: '52px', maxHeight: '200px' }}
                 disabled={isLoading}
+                rows={1}
               />
               <button
                 type="submit"
@@ -474,7 +497,7 @@ function ChatPageContent() {
             </div>
           </form>
         </div>
-      </main>
+      </div>
     </div>
   )
 }
