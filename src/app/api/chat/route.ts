@@ -120,7 +120,7 @@ ${formDataText}
 ユーザーの回答を踏まえて、自然な対話を続けてください。`
     }
     
-    const completion = await openai.chat.completions.create({
+    const completion = await client.chat.completions.create({
       model: 'gpt-4o',
       messages: [
         {
