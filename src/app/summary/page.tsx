@@ -15,10 +15,6 @@ function SummaryPageContent() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
-  const [userEmail, setUserEmail] = useState<string>('')
-  const [emailError, setEmailError] = useState<string>('')
-  const [referenceUrls, setReferenceUrls] = useState<string[]>([''])
-  const [urlError, setUrlError] = useState<string>('')
   
   
   // APIが利用できない場合のフォールバック要約生成
@@ -125,80 +121,21 @@ function SummaryPageContent() {
     loadSummary()
   }, [siteType, industry])
 
-  const validateEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    return emailRegex.test(email)
-  }
-
-  const validateUrl = (url: string) => {
-    try {
-      new URL(url)
-      return true
-    } catch {
-      return false
-    }
-  }
-
-  const addUrlField = () => {
-    setReferenceUrls([...referenceUrls, ''])
-  }
-
-  const removeUrlField = (index: number) => {
-    if (referenceUrls.length > 1) {
-      const newUrls = referenceUrls.filter((_, i) => i !== index)
-      setReferenceUrls(newUrls)
-    }
-  }
-
-  const updateUrl = (index: number, value: string) => {
-    const newUrls = [...referenceUrls]
-    newUrls[index] = value
-    setReferenceUrls(newUrls)
-    setUrlError('')
-  }
 
   const handleProceed = async () => {
-    // メールアドレスのバリデーション
-    if (!userEmail.trim()) {
-      setEmailError('メールアドレスを入力してください')
-      return
-    }
-    
-    if (!validateEmail(userEmail)) {
-      setEmailError('有効なメールアドレスを入力してください')
-      return
-    }
-    
-    // 参考URLのバリデーション
-    const validUrls = referenceUrls.filter(url => url.trim() !== '')
-    
-    if (validUrls.length === 0) {
-      setUrlError('参考にしたいサイトのURLを最低1つ入力してください')
-      return
-    }
-    
-    for (const url of validUrls) {
-      if (!validateUrl(url)) {
-        setUrlError('有効なURLを入力してください（例: https://example.com）')
-        return
-      }
-    }
-    
-    setEmailError('')
-    setUrlError('')
     setIsProcessing(true)
     
     try {
       // メール送信用のデータを準備
       const siteInfo = localStorage.getItem('siteInfo')
+      const chatHistory = localStorage.getItem('chatHistory')
       const dataToSend = {
         type: siteType,
         industry: industry,
         summary: summary,
         basicInfo: siteInfo ? JSON.parse(siteInfo).basicInfo : {},
         timestamp: new Date().toISOString(),
-        userEmail: userEmail,
-        referenceUrls: referenceUrls.filter(url => url.trim() !== '')
+        chatHistory: chatHistory ? JSON.parse(chatHistory) : []
       }
       
       // メール本文を生成
@@ -249,8 +186,6 @@ function SummaryPageContent() {
       */
       
       // 管理者への送信が成功したら完了画面へ遷移
-      localStorage.setItem('userEmail', userEmail) // ユーザーメールアドレスを保存
-      localStorage.setItem('referenceUrls', JSON.stringify(referenceUrls.filter(url => url.trim() !== ''))) // 参考URLを保存
       router.push('/complete')
     } catch (error) {
       console.error('Send error:', error)
@@ -263,19 +198,24 @@ function SummaryPageContent() {
     let content = '=== AIサイト作成フォーム 要約情報 ===\n\n'
     content += `作成日時: ${data.timestamp}\n`
     content += `サイトタイプ: ${data.type}\n`
-    content += `業種: ${data.industry}\n`
-    content += `ユーザーメールアドレス: ${data.userEmail}\n\n`
-    
-    if (data.referenceUrls && data.referenceUrls.length > 0) {
-      content += '【参考にしたいサイト】\n'
-      data.referenceUrls.forEach((url: string, index: number) => {
-        content += `${index + 1}. ${url}\n`
-      })
-      content += '\n'
-    }
+    content += `業種: ${data.industry}\n\n`
     
     content += '【AIによる要約・提案内容】\n'
     content += data.summary
+    content += '\n\n'
+    
+    // チャット履歴を追加
+    if (data.chatHistory && data.chatHistory.length > 0) {
+      content += '=== チャット履歴 ===\n\n'
+      data.chatHistory.forEach((message: any) => {
+        const role = message.role === 'assistant' ? 'AI' : 'ユーザー'
+        const timestamp = message.timestamp ? new Date(message.timestamp).toLocaleString('ja-JP') : ''
+        
+        content += `【${role}】${timestamp ? ` (${timestamp})` : ''}\n`
+        content += `${message.content}\n`
+        content += '---\n\n'
+      })
+    }
     
     return content
   }
@@ -362,83 +302,6 @@ function SummaryPageContent() {
           </p>
         </div>
 
-        {/* メールアドレス入力フォーム */}
-        <div className="bg-white rounded-lg shadow-lg p-4 md:p-6 my-4 md:my-6">
-          <h2 className="text-lg md:text-xl font-semibold mb-3 md:mb-4">連絡先メールアドレス</h2>
-          <p className="text-gray-600 text-xs md:text-sm mb-3 md:mb-4">
-            進捗状況をお知らせするメールアドレスをご入力ください。
-          </p>
-          <div className="space-y-2">
-            <input
-              type="email"
-              value={userEmail}
-              onChange={(e) => {
-                setUserEmail(e.target.value)
-                setEmailError('')
-              }}
-              placeholder="example@email.com"
-              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                emailError ? 'border-red-500' : 'border-gray-300'
-              }`}
-              disabled={isProcessing}
-            />
-            {emailError && (
-              <p className="text-red-500 text-sm">{emailError}</p>
-            )}
-          </div>
-        </div>
-
-        {/* 参考サイトURL入力フォーム */}
-        <div className="bg-white rounded-lg shadow-lg p-4 md:p-6 my-4 md:my-6">
-          <h2 className="text-lg md:text-xl font-semibold mb-3 md:mb-4">参考にしたいサイト</h2>
-          <p className="text-gray-600 text-xs md:text-sm mb-3 md:mb-4">
-            デザインや機能の参考にしたいサイトのURLを入力してください（最低1つ必須）。
-          </p>
-          <div className="space-y-3">
-            {referenceUrls.map((url, index) => (
-              <div key={index} className="flex gap-2">
-                <input
-                  type="url"
-                  value={url}
-                  onChange={(e) => updateUrl(index, e.target.value)}
-                  placeholder="https://example.com"
-                  className={`flex-1 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    urlError ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  disabled={isProcessing}
-                />
-                {referenceUrls.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeUrlField(index)}
-                    className="px-3 py-3 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                    disabled={isProcessing}
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-            ))}
-            
-            <button
-              type="button"
-              onClick={addUrlField}
-              className="w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-500 hover:text-blue-500 transition-colors flex items-center justify-center gap-2"
-              disabled={isProcessing}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              参考サイトを追加
-            </button>
-            
-            {urlError && (
-              <p className="text-red-500 text-sm">{urlError}</p>
-            )}
-          </div>
-        </div>
 
         <EditableSummary 
           summary={summary}

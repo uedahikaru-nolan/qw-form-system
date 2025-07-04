@@ -1,37 +1,17 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 
 export default function CompletePage() {
   const router = useRouter()
-  const [userEmail, setUserEmail] = useState('')
-  const [referenceUrls, setReferenceUrls] = useState<string[]>([])
 
   useEffect(() => {
-    // ユーザーメールアドレスを取得
-    const email = localStorage.getItem('userEmail')
-    if (email) {
-      setUserEmail(email)
-    }
-    
-    // 参考URLを取得
-    const urls = localStorage.getItem('referenceUrls')
-    if (urls) {
-      try {
-        setReferenceUrls(JSON.parse(urls))
-      } catch (error) {
-        console.error('Failed to parse reference URLs:', error)
-      }
-    }
-    
     // Clear local storage
     localStorage.removeItem('chatHistory')
     localStorage.removeItem('siteInfo')
     localStorage.removeItem('siteSummary')
     localStorage.removeItem('generatedContent')
-    localStorage.removeItem('userEmail')
-    localStorage.removeItem('referenceUrls')
   }, [])
 
   const handleNewRequest = () => {
@@ -71,21 +51,9 @@ export default function CompletePage() {
 
             <div className="mb-6">
               <h2 className="font-semibold mb-2">■ ご入力内容</h2>
-              {referenceUrls.length > 0 && (
-                <div className="mb-2">
-                  参考サイト：
-                  {referenceUrls.map((url, index) => (
-                    <div key={index} className="ml-4">
-                      <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">{url}</a>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {userEmail && (
-                <div>
-                  ご連絡先メールアドレス： <span className="font-medium">{userEmail}</span>
-                </div>
-              )}
+              <div className="ml-4">
+                <p>お客様のご要望に基づいたサイト構成案を作成いたしました。</p>
+              </div>
             </div>
 
             <div>

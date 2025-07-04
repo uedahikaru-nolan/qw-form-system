@@ -17,16 +17,16 @@ function getOpenAIClient() {
 
 const SYSTEM_PROMPTS: Record<SiteType, string> = {
   HP: `あなたはホームページ作成をサポートするAIアシスタントです。
-ユーザーの業種に合わせて、必要な情報を段階的に収集し、魅力的なホームページの構成を提案します。
+ユーザーの情報を段階的に収集し、適切なホームページの構成を提案します。
 以下の点に注意してください：
-- まずはサービス名を聞いてください
-- 必ず聞かないといけないこと：サービス名や会社名・VMV（ビジョン・ミッション・バリュー）
-- ページ構成とその中に必要なセクションについては細かく聞いてください
-- 例：トップページには何を載せたいか、サービスページの詳細、会社概要ページに含める情報など
-- ユーザーの回答内容を理解し、すでに回答された情報は再度聞かない
-- 回答内容に応じて、追加の質問や提案を柔軟に行う
+- 必須項目：担当者名、メールアドレスは必ず収集してください
+- 会社名（屋号）、サービス名は「あれば」なので、なければ次に進んでください
+- コンセプトやVMV（Vision、Mission、Value）は「あれば」なので、なければ次に進んでください
+- 順番通りに質問し、回答内容を理解してすでに回答された情報は再度聞かない
+- ユーザーが複数の情報を一度に提供した場合は、それらを整理して未回答の項目のみ聞く
 - 親しみやすく、プロフェッショナルなトーンで対話する
-- 複数の情報が一度に提供された場合は、それらを整理して次の質問に進む`,
+- サイトの内容、ページ数、納期、その他要望は自由記述なので、ユーザーの回答をそのまま受け入れる
+- 参考URLが複数ある場合は、すべて記録する`,
   
   LP: `あなたはランディングページ作成をサポートするAIアシスタントです。
 コンバージョンを最大化するために必要な情報を収集し、効果的なLPの構成を提案します。
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    const { messages, siteType, industry, currentQuestion } = await request.json()
+    const { messages, siteType, industry, currentQuestion, isFormDataProvided, formDataSummary } = await request.json()
     
     if (!siteType || !SYSTEM_PROMPTS[siteType as SiteType]) {
       return NextResponse.json(
@@ -80,12 +80,37 @@ export async function POST(request: NextRequest) {
     
     const systemPrompt = SYSTEM_PROMPTS[siteType as SiteType]
     
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'system',
-          content: `${systemPrompt}\n\n業種: ${industry}\n\n重要な指示：
+    // フォームデータが提供されている場合は、初期挨拶を生成
+    let systemMessage = systemPrompt
+    
+    if (formDataSummary && formDataSummary.length > 0) {
+      // フォームデータが提供されている場合
+      const formDataText = formDataSummary.map((item: any) => `${item.label}: ${item.value}`).join('\n')
+      systemMessage = `${systemPrompt}\n\n業種: ${industry}\n\n重要な指示：
+- ユーザーはフォームで以下の情報を提供しています：
+${formDataText}
+
+- 提供された情報を確認し、感謝の意を示してください
+- フォームで提供された情報を踏まえた上で、自然な挨拶をしてください
+- 担当者名がわかる場合は、「〇〇様」と呼びかけてください
+- これから段階的に詳細を確認していくことを伝えてください
+- 最初の質問をする必要はありません`
+    } else if (isFormDataProvided) {
+      // 提案生成モード
+      systemMessage = `${systemPrompt}\n\n業種: ${industry}\n\n重要な指示：
+- ユーザーはすでにフォームで必要な情報をすべて提供しています
+- 会話履歴を確認し、提供された情報を整理してください
+- 追加の質問はせず、いただいた情報を基に具体的なホームページ構成の提案を行ってください
+- 提案には以下を含めてください：
+  - ページ構成の提案（トップページ、各ページの内容）
+  - コンセプトやVMVが提供されている場合は、それを反映したサイトの方向性
+  - イメージカラーを活かしたデザインの方向性
+  - 参考サイトを踏まえた特徴的な機能やレイアウトの提案
+  - 納期に合わせたスケジュール感
+- ポジティブで建設的な提案を心がけてください`
+    } else {
+      // 通常モード
+      systemMessage = `${systemPrompt}\n\n業種: ${industry}\n\n重要な指示：
 - これまでの会話履歴を確認し、すでに回答された情報は再度聞かないでください
 - ユーザーが複数の情報を一度に提供した場合は、それらをすべて理解したことを示し、不足している情報のみを聞いてください
 - 質問は自然な会話として行い、機械的にならないようにしてください
@@ -93,11 +118,19 @@ export async function POST(request: NextRequest) {
 - 現在の基本的な質問リストの質問番号: ${currentQuestion}
 
 ユーザーの回答を踏まえて、自然な対話を続けてください。`
+    }
+    
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'system',
+          content: systemMessage
         },
         ...messages
       ],
       temperature: 0.8,
-      max_tokens: 500,
+      max_tokens: isFormDataProvided ? 1000 : 500,
     })
     
     const response = completion.choices[0].message.content || ''

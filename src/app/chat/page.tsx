@@ -7,16 +7,20 @@ import { ChatMessage, SiteType, SiteInfo } from '@/types'
 // 基本的な質問の流れを定義（AIが参考にする）
 const QUESTIONS_BY_TYPE: Record<SiteType, string[]> = {
   HP: [
-    '店舗名・会社名を教えてください。',
-    '住所（地図に載せたい場合は詳細に）を教えてください。',
-    '電話番号・予約用の連絡先はありますか？',
-    '営業時間と定休日を教えてください。',
-    '提供するサービス・コンセプトを教えてください。',
-    'メニュー内容を載せますか？もしあれば代表的なメニューを教えてください。',
-    '写真は用意できますか？',
-    '予約フォームは必要ですか？',
-    'SNSアカウントがあれば送ってください。',
-    'こだわりポイントやストーリーがあれば教えてください。'
+    '会社名（屋号）を教えてください（あれば）',
+    'サービス名を教えてください（あれば）',
+    'ご担当者様のお名前を教えてください（必須）',
+    'メールアドレスを教えてください（必須）',
+    '電話番号を教えてください（任意）',
+    '業種を教えてください',
+    'コンセプトやVMV（Vision、Mission、Value）があれば教えてください',
+    'サイトのイメージカラーを教えてください',
+    '現在のサイトURL（あれば）',
+    '参考にしたいサイトURL（任意・複数可）',
+    'サイトに載せたい主な内容を教えてください（例：サービス紹介、料金表、会社情報など）',
+    'ご希望のページ数（おおよそで可）',
+    '納期の希望時期はありますか？',
+    'その他ご要望があれば教えてください'
   ],
   LP: [
     'サービス・商品名を教えてください。',
@@ -54,15 +58,18 @@ function ChatPageContent() {
   const siteType = searchParams.get('type') as SiteType
   const industry = searchParams.get('industry') || ''
   
+  const hasInitialFormData = siteType === 'HP' && typeof window !== 'undefined' && localStorage.getItem('initialFormData') !== null
+  
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [userInput, setUserInput] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(false) // 常にfalseで開始
   const [siteInfo, setSiteInfo] = useState<SiteInfo>({
     type: siteType,
     industry: industry,
     basicInfo: {}
   })
+  const [isInitialized, setIsInitialized] = useState(false)
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -109,12 +116,166 @@ function ChatPageContent() {
     }
   }, [siteType, industry, questions])
 
+  // フォームデータ付きの初期挨拶生成
+  const generateInitialGreetingWithFormData = useCallback(async (formDataSummary: any[]) => {
+    setIsLoading(true)
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: [],
+          siteType,
+          industry,
+          currentQuestion: 0,
+          formDataSummary: formDataSummary  // フォームデータを送信
+        })
+      })
+
+      if (response.ok) {
+        const { response: aiResponse } = await response.json()
+        const firstMessage: ChatMessage = {
+          id: '1',
+          role: 'assistant',
+          content: aiResponse,
+          timestamp: new Date()
+        }
+        setMessages([firstMessage])
+        
+        // フォームデータをチャット履歴として追加
+        let messageId = 2
+        const newMessages: ChatMessage[] = [firstMessage]
+        
+        formDataSummary.forEach((item) => {
+          // AI質問
+          newMessages.push({
+            id: messageId.toString(),
+            role: 'assistant',
+            content: `${item.label}を教えてください`,
+            timestamp: new Date()
+          })
+          messageId++
+          
+          // ユーザー回答
+          newMessages.push({
+            id: messageId.toString(),
+            role: 'user',
+            content: item.value,
+            timestamp: new Date()
+          })
+          messageId++
+        })
+        
+        setMessages(newMessages)
+        setCurrentQuestionIndex(questions.length) // すべての質問完了
+        
+        // 少し遅延を入れてから、まとめメッセージを送信
+        setTimeout(async () => {
+          setIsLoading(true)
+          try {
+            // まとめメッセージを生成
+            const summaryResponse = await fetch('/api/chat', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+                siteType,
+                industry,
+                currentQuestion: questions.length,
+                isFormDataProvided: true  // 提案モードを有効化
+              })
+            })
+
+            if (summaryResponse.ok) {
+              const { response: summaryMessage } = await summaryResponse.json()
+              setMessages(prev => [...prev, {
+                id: (prev.length + 1).toString(),
+                role: 'assistant',
+                content: summaryMessage,
+                timestamp: new Date()
+              }])
+            }
+          } catch (error) {
+            console.error('Summary generation error:', error)
+          } finally {
+            setIsLoading(false)
+          }
+        }, 1500) // 1.5秒後にまとめメッセージを送信
+      }
+    } catch (error) {
+      console.error('Initial greeting error:', error)
+      setMessages([{
+        id: '1',
+        role: 'assistant',
+        content: `${industry}のホームページ作成をサポートさせていただきます。`,
+        timestamp: new Date()
+      }])
+    } finally {
+      setIsLoading(false)
+    }
+  }, [siteType, industry, questions.length])
+
   useEffect(() => {
-    if (messages.length === 0 && questions.length > 0) {
-      // AIによる柔軟な最初の挨拶を生成
+    if (!isInitialized && messages.length === 0 && questions.length > 0) {
+      setIsInitialized(true)
+      
+      // HPタイプの場合、初期フォームデータを確認
+      if (siteType === 'HP') {
+        const initialFormData = localStorage.getItem('initialFormData')
+        if (initialFormData) {
+          const formData = JSON.parse(initialFormData)
+          
+          // フィールド定義
+          const fields = [
+            { key: 'companyName', label: '会社名（屋号）' },
+            { key: 'serviceName', label: 'サービス名' },
+            { key: 'contactPerson', label: 'ご担当者様のお名前' },
+            { key: 'email', label: 'メールアドレス' },
+            { key: 'phone', label: '電話番号' },
+            { key: 'industry', label: '業種' },
+            { key: 'conceptVMV', label: 'コンセプト・VMV' },
+            { key: 'themeColor', label: 'サイトのイメージカラー' },
+            { key: 'currentSiteUrl', label: '現在のサイトURL' },
+            { key: 'referenceUrls', label: '参考にしたいサイトURL' },
+            { key: 'mainContents', label: 'サイトに載せたい主な内容' },
+            { key: 'pageCount', label: 'ご希望のページ数' },
+            { key: 'deadline', label: '納期の希望時期' },
+            { key: 'otherRequests', label: 'その他ご要望' }
+          ]
+          
+          // フォームデータの整理
+          const formDataSummary: any[] = []
+          fields.forEach((field, index) => {
+            const value = formData[field.key]
+            if (value && (Array.isArray(value) ? value.filter((v: string) => v).length > 0 : value.trim())) {
+              const displayValue = Array.isArray(value) ? value.filter((v: string) => v).join('\n') : value
+              formDataSummary.push({
+                label: field.label,
+                value: displayValue
+              })
+              // siteInfoを更新
+              updateSiteInfo(index, displayValue)
+            }
+          })
+          
+          // フォームデータをクリア
+          localStorage.removeItem('initialFormData')
+          
+          // AIに最初の挨拶を生成させる
+          setIsLoading(true)
+          generateInitialGreetingWithFormData(formDataSummary)
+          return
+        }
+      }
+      
+      // 通常のAI挨拶
       generateInitialGreeting()
     }
-  }, [messages.length, questions.length, generateInitialGreeting])
+  }, [messages.length, questions.length, generateInitialGreeting, generateInitialGreetingWithFormData, siteType, industry, isInitialized])
 
   useEffect(() => {
     scrollToBottom()
@@ -261,49 +422,49 @@ function ChatPageContent() {
   const updateSiteInfo = (questionIndex: number, answer: string) => {
     const updatedInfo = { ...siteInfo }
     
-    // AIが柔軟に情報を抽出できるように、ユーザーの回答を解析
-    const answerLower = answer.toLowerCase()
-    
     if (!updatedInfo.basicInfo) updatedInfo.basicInfo = {}
     
-    // 回答から情報を抽出
-    // 名称の抽出
-    if (answer.includes('店') || answer.includes('会社') || answer.includes('名')) {
-      const nameMatch = answer.match(/[「『]?([^」』。、]+)[」』]?(?:です|といいます|と申します)?/)
-      if (nameMatch && nameMatch[1]) updatedInfo.basicInfo.name = nameMatch[1]
-    }
-    
-    // 住所の抽出
-    if (answer.includes('住所') || answer.includes('所在地') || answer.match(/[都道府県市区町村]/)) {
-      updatedInfo.basicInfo.address = answer
-    }
-    
-    // 電話番号の抽出
-    const phoneMatch = answer.match(/\d{2,4}-\d{2,4}-\d{3,4}/)
-    if (phoneMatch && phoneMatch[0]) {
-      updatedInfo.basicInfo.phone = phoneMatch[0]
-    }
-    
-    // 営業時間の抽出
-    if (answer.includes('時') || answer.includes('営業')) {
-      updatedInfo.basicInfo.businessHours = answer
-    }
-    
-    // その他の情報も柔軟に保存
-    const questionKeys = [
-      'name', 'address', 'phone', 'businessHours', 'holidays',
-      'concept', 'menu', 'photos', 'reservation', 'sns', 'specialFeatures'
-    ]
-    
-    if (questionKeys[questionIndex]) {
-      const key = questionKeys[questionIndex] as keyof typeof updatedInfo.basicInfo
+    // HPタイプの新しい質問に対応
+    if (siteType === 'HP') {
+      const hpQuestionKeys = [
+        'companyName',        // 会社名（屋号）
+        'serviceName',        // サービス名
+        'contactPerson',      // 担当者名
+        'email',              // メールアドレス
+        'phone',              // 電話番号
+        'industry',           // 業種
+        'conceptVMV',         // コンセプト・VMV
+        'themeColor',         // イメージカラー
+        'currentSiteUrl',     // 現在のサイトURL
+        'referenceUrls',      // 参考サイトURL
+        'mainContents',       // サイトに載せたい内容
+        'pageCount',          // ページ数
+        'deadline',           // 納期
+        'otherRequests'       // その他要望
+      ]
       
-      if (key === 'photos' || key === 'reservation') {
-        // boolean型のフィールド
-        (updatedInfo.basicInfo as any)[key] = answerLower.includes('はい') || answerLower.includes('yes') || answerLower.includes('お願い')
-      } else {
-        // string型のフィールド
+      if (hpQuestionKeys[questionIndex]) {
+        const key = hpQuestionKeys[questionIndex] as keyof typeof updatedInfo.basicInfo
         (updatedInfo.basicInfo as any)[key] = answer
+      }
+    } else {
+      // 他のサイトタイプ用の既存ロジック
+      const questionKeys = [
+        'name', 'address', 'phone', 'businessHours', 'holidays',
+        'concept', 'menu', 'photos', 'reservation', 'sns', 'specialFeatures'
+      ]
+      
+      if (questionKeys[questionIndex]) {
+        const key = questionKeys[questionIndex] as keyof typeof updatedInfo.basicInfo
+        const answerLower = answer.toLowerCase()
+        
+        if (key === 'photos' || key === 'reservation') {
+          // boolean型のフィールド
+          (updatedInfo.basicInfo as any)[key] = answerLower.includes('はい') || answerLower.includes('yes') || answerLower.includes('お願い')
+        } else {
+          // string型のフィールド
+          (updatedInfo.basicInfo as any)[key] = answer
+        }
       }
     }
     
@@ -380,9 +541,29 @@ function ChatPageContent() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-4xl mx-auto w-full p-4 pb-24">
-        <div className="bg-white rounded-lg shadow h-full">
-          <div className="overflow-y-auto p-6 space-y-4">
+      <main className="flex-1 w-full">
+        <div className="flex h-full">
+          {/* 左側のメッセージ */}
+          {messages.length > 2 && (
+            <div className="hidden lg:block w-64 bg-gray-50 border-r p-6">
+              <div className="sticky top-6">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-blue-900 mb-2">ご案内</h3>
+                  <p className="text-sm text-blue-800 mb-3">
+                    付け加えたい内容がありましたらいつでも私に相談ください。
+                  </p>
+                  <p className="text-sm text-blue-800">
+                    内容がよければ制作スタートボタンを押してください。
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* メインチャットエリア */}
+          <div className="flex-1 max-w-4xl mx-auto p-4 pb-24">
+            <div className="bg-white rounded-lg shadow h-full">
+              <div className="overflow-y-auto p-6 space-y-4">
             {messages.map((message) => (
               <div
                 key={message.id}
@@ -411,59 +592,42 @@ function ChatPageContent() {
               </div>
             )}
             <div ref={messagesEndRef} />
+              </div>
+            </div>
           </div>
-
         </div>
       </main>
 
       {/* フローティング入力フォーム */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg">
         <div className="max-w-4xl mx-auto">
-          {(currentQuestionIndex === 2 || currentQuestionIndex === 6 || currentQuestionIndex === 7) && (
-            <div className="px-6 pt-4">
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleQuickAnswer('はい')}
-                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm"
-                >
-                  はい
-                </button>
-                <button
-                  onClick={() => handleQuickAnswer('いいえ')}
-                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm"
-                >
-                  いいえ
-                </button>
-              </div>
-            </div>
-          )}
-
-          {currentQuestionIndex === 4 && siteType === 'HP' && (
+          {/* イメージカラーのクイック選択（HP質問7） */}
+          {currentQuestionIndex === 7 && siteType === 'HP' && (
             <div className="px-6 pt-4">
               <div className="flex flex-wrap gap-2">
                 <button
-                  onClick={() => handleQuickAnswer('イタリアン')}
+                  onClick={() => handleQuickAnswer('青系（信頼感・安心感）')}
                   className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm"
                 >
-                  イタリアン
+                  青系（信頼感・安心感）
                 </button>
                 <button
-                  onClick={() => handleQuickAnswer('和食')}
+                  onClick={() => handleQuickAnswer('緑系（自然・安らぎ）')}
                   className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm"
                 >
-                  和食
+                  緑系（自然・安らぎ）
                 </button>
                 <button
-                  onClick={() => handleQuickAnswer('カフェ')}
+                  onClick={() => handleQuickAnswer('赤系（情熱・活力）')}
                   className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm"
                 >
-                  カフェ
+                  赤系（情熱・活力）
                 </button>
                 <button
-                  onClick={() => handleQuickAnswer('中華')}
+                  onClick={() => handleQuickAnswer('モノトーン（洗練・高級感）')}
                   className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm"
                 >
-                  中華
+                  モノトーン（洗練・高級感）
                 </button>
               </div>
             </div>
