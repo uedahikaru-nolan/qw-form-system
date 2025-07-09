@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
+import { WebClient } from '@slack/web-api'
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,6 +18,130 @@ export async function POST(request: NextRequest) {
     if (process.env.NODE_ENV === 'development' && process.env.SKIP_EMAIL === 'true') {
       console.log('開発環境でSKIP_EMAIL=trueのため、メール送信をスキップしました')
       return NextResponse.json({ success: true, skipped: true })
+    }
+    
+    // Slack Web APIに送信（管理者メールの場合のみ）
+    if (isAdmin && process.env.SLACK_BOT_TOKEN && process.env.SLACK_CHANNEL_ID) {
+      try {
+        // Slack Web APIクライアントの初期化
+        const slack = new WebClient(process.env.SLACK_BOT_TOKEN)
+        
+        console.log('Using Slack Web API with channel:', process.env.SLACK_CHANNEL_ID)
+        
+        // フォーム内容を解析して構造化
+        const lines = content.split('\n').filter((line: string) => line.trim())
+        const formData: Record<string, string> = {}
+        
+        lines.forEach((line: string) => {
+          const colonIndex = line.indexOf(':')
+          if (colonIndex > 0) {
+            const key = line.substring(0, colonIndex).trim()
+            const value = line.substring(colonIndex + 1).trim()
+            if (key && value) {
+              formData[key] = value
+            }
+          }
+        })
+        
+        // 会社名を取得（優先順位: 会社名 > ご担当者名 > お名前）
+        const companyName = formData['会社名'] || formData['ご担当者名'] || formData['お名前'] || formData['ご担当者様のお名前'] || '未入力'
+        
+        // メインメッセージを送信
+        try {
+          const mainMessage = await slack.chat.postMessage({
+            channel: process.env.SLACK_CHANNEL_ID,
+            text: `<!channel> 【${companyName}】様よりフォームが入力されました！`,
+            blocks: [
+              {
+                type: 'section',
+                text: {
+                  type: 'mrkdwn',
+                  text: `<!channel> 【${companyName}】様よりフォームが入力されました！`
+                }
+              },
+              {
+                type: 'section',
+                fields: [
+                  {
+                    type: 'mrkdwn',
+                    text: `*📅 送信日時*\n${new Date().toLocaleString('ja-JP')}`
+                  },
+                  {
+                    type: 'mrkdwn',
+                    text: `*🌐 サイトタイプ*\n${formData['サイトタイプ'] || formData['サイト種別'] || '未指定'}`
+                  }
+                ]
+              },
+              {
+                type: 'section',
+                text: {
+                  type: 'mrkdwn',
+                  text: `*👤 お客様*: ${formData['会社名'] || formData['ご担当者名'] || formData['お名前'] || formData['ご担当者様のお名前'] || '未入力'}\n*📧 メール*: ${formData['メールアドレス'] || formData['email'] || '未入力'}`
+                }
+              },
+              {
+                type: 'actions',
+                elements: [
+                  {
+                    type: 'button',
+                    text: {
+                      type: 'plain_text',
+                      text: 'Notionで詳細を確認',
+                      emoji: true
+                    },
+                    url: 'https://www.notion.so/2185b8517dea80e8a10ec20da021e84d?v=2185b8517dea80c5adfe000c2b228e85&source=copy_link',
+                    style: 'primary'
+                  }
+                ]
+              }
+            ]
+          })
+          
+          console.log('Main message sent:', mainMessage.ok ? 'Success' : 'Failed')
+          
+          // スレッドに詳細内容を投稿
+          if (mainMessage.ok && mainMessage.ts) {
+            console.log('Posting thread message with ts:', mainMessage.ts)
+            
+            const threadMessage = await slack.chat.postMessage({
+              channel: process.env.SLACK_CHANNEL_ID,
+              thread_ts: mainMessage.ts,
+              text: 'フォーム詳細内容',
+              blocks: [
+                {
+                  type: 'header',
+                  text: {
+                    type: 'plain_text',
+                    text: '📋 フォーム詳細内容',
+                    emoji: true
+                  }
+                },
+                {
+                  type: 'section',
+                  text: {
+                    type: 'mrkdwn',
+                    text: `\`\`\`${content}\`\`\``
+                  }
+                }
+              ]
+            })
+            
+            console.log('Thread message sent:', threadMessage.ok ? 'Success' : 'Failed')
+            console.log('Slack通知送信成功（メインメッセージとスレッドに投稿）')
+          } else {
+            console.error('Failed to send main message or get timestamp')
+          }
+        } catch (apiError: any) {
+          console.error('Slack API Error:', apiError.message)
+          if (apiError.data) {
+            console.error('Error details:', apiError.data)
+          }
+          throw apiError
+        }
+      } catch (slackError) {
+        console.error('Slack送信エラー:', slackError)
+        // Slackエラーでもメール送信は続行
+      }
     }
     
     // Resend APIキーが設定されている場合のみメール送信

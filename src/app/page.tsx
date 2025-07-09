@@ -50,10 +50,16 @@ export default function Home() {
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (formData.contactPerson.trim() && formData.email.trim()) {
+    
+    // 参考URLの検証（最低1つ必要）
+    const hasValidReferenceUrl = formData.referenceUrls.some(url => url.trim() !== '')
+    
+    if (formData.contactPerson.trim() && formData.email.trim() && hasValidReferenceUrl) {
       // LocalStorageに保存
       localStorage.setItem('initialFormData', JSON.stringify(formData))
       router.push(`/chat?type=${siteType}&industry=${encodeURIComponent(formData.industry)}`)
+    } else if (!hasValidReferenceUrl) {
+      alert('参考にしたいサイトURLを最低1つ入力してください。')
     }
   }
 
@@ -262,7 +268,7 @@ export default function Home() {
               {/* 参考サイトURL */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  参考にしたいサイトURL<span className="text-gray-500 text-xs ml-1">（任意・複数可）</span>
+                  参考にしたいサイトURL<span className="text-red-500">*</span><span className="text-gray-500 text-xs ml-1">（最低1つ必須・複数可）</span>
                 </label>
                 {formData.referenceUrls.map((url, index) => (
                   <div key={index} className="flex gap-2 mb-2">
@@ -272,6 +278,7 @@ export default function Home() {
                       onChange={(e) => updateReferenceUrl(index, e.target.value)}
                       placeholder="https://example.com"
                       className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required={index === 0} // 最初のURLは必須
                     />
                     {formData.referenceUrls.length > 1 && (
                       <button

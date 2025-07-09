@@ -148,7 +148,7 @@ function SummaryPageContent() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          to: 'h_ueda@nolan.co.jp,qw-form-notification-aaaaqumooqghb4dkaivgoquwfi@nolan-co-jp.slack.com',
+          to: 'h_ueda@nolan.co.jp',
           content: emailContent,
           isAdmin: true
         })
@@ -199,6 +199,33 @@ function SummaryPageContent() {
     content += `作成日時: ${data.timestamp}\n`
     content += `サイトタイプ: ${data.type}\n`
     content += `業種: ${data.industry}\n\n`
+    
+    // 基本情報を追加
+    if (data.basicInfo && Object.keys(data.basicInfo).length > 0) {
+      content += '【お客様情報】\n'
+      if (data.basicInfo.companyName) content += `会社名: ${data.basicInfo.companyName}\n`
+      if (data.basicInfo.serviceName) content += `サービス名: ${data.basicInfo.serviceName}\n`
+      if (data.basicInfo.contactPerson) content += `ご担当者名: ${data.basicInfo.contactPerson}\n`
+      if (data.basicInfo.email) content += `メールアドレス: ${data.basicInfo.email}\n`
+      if (data.basicInfo.phone) content += `電話番号: ${data.basicInfo.phone}\n`
+      if (data.basicInfo.conceptVMV) content += `コンセプト/VMV: ${data.basicInfo.conceptVMV}\n`
+      if (data.basicInfo.themeColor) content += `イメージカラー: ${data.basicInfo.themeColor}\n`
+      if (data.basicInfo.currentSiteUrl) content += `現在のサイトURL: ${data.basicInfo.currentSiteUrl}\n`
+      if (data.basicInfo.referenceUrls && data.basicInfo.referenceUrls.length > 0) {
+        const validUrls = data.basicInfo.referenceUrls.filter((url: string) => url.trim())
+        if (validUrls.length > 0) {
+          content += `参考サイトURL:\n`
+          validUrls.forEach((url: string, index: number) => {
+            content += `  ${index + 1}. ${url}\n`
+          })
+        }
+      }
+      if (data.basicInfo.mainContents) content += `サイトに載せたい内容: ${data.basicInfo.mainContents}\n`
+      if (data.basicInfo.pageCount) content += `希望ページ数: ${data.basicInfo.pageCount}\n`
+      if (data.basicInfo.deadline) content += `納期希望: ${data.basicInfo.deadline}\n`
+      if (data.basicInfo.otherRequests) content += `その他要望: ${data.basicInfo.otherRequests}\n`
+      content += '\n'
+    }
     
     content += '【AIによる要約・提案内容】\n'
     content += data.summary

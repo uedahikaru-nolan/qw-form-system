@@ -16,7 +16,7 @@ const QUESTIONS_BY_TYPE: Record<SiteType, string[]> = {
     'コンセプトやVMV（Vision、Mission、Value）があれば教えてください',
     'サイトのイメージカラーを教えてください',
     '現在のサイトURL（あれば）',
-    '参考にしたいサイトURL（任意・複数可）',
+    '参考にしたいサイトURL（必須・複数可）',
     'サイトに載せたい主な内容を教えてください（例：サービス紹介、料金表、会社情報など）',
     'ご希望のページ数（おおよそで可）',
     '納期の希望時期はありますか？',
@@ -247,9 +247,11 @@ function ChatPageContent() {
             { key: 'otherRequests', label: 'その他ご要望' }
           ]
           
-          // フォームデータの整理
+          // フォームデータの整理とsiteInfoの初期化
           const formDataSummary: any[] = []
-          fields.forEach((field, index) => {
+          const updatedSiteInfo = { ...siteInfo, basicInfo: {} as any }
+          
+          fields.forEach((field) => {
             const value = formData[field.key]
             if (value && (Array.isArray(value) ? value.filter((v: string) => v).length > 0 : value.trim())) {
               const displayValue = Array.isArray(value) ? value.filter((v: string) => v).join('\n') : value
@@ -257,10 +259,19 @@ function ChatPageContent() {
                 label: field.label,
                 value: displayValue
               })
-              // siteInfoを更新
-              updateSiteInfo(index, displayValue)
+              
+              // siteInfoのbasicInfoに直接設定
+              if (field.key === 'referenceUrls') {
+                updatedSiteInfo.basicInfo[field.key] = Array.isArray(value) ? value.filter((v: string) => v) : [value]
+              } else {
+                updatedSiteInfo.basicInfo[field.key] = value
+              }
             }
           })
+          
+          // siteInfoを更新して保存
+          setSiteInfo(updatedSiteInfo)
+          localStorage.setItem('siteInfo', JSON.stringify(updatedSiteInfo))
           
           // フォームデータをクリア
           localStorage.removeItem('initialFormData')
@@ -445,7 +456,15 @@ function ChatPageContent() {
       
       if (hpQuestionKeys[questionIndex]) {
         const key = hpQuestionKeys[questionIndex] as keyof typeof updatedInfo.basicInfo
-        (updatedInfo.basicInfo as any)[key] = answer
+        
+        // referenceUrlsは配列として処理
+        if (key === 'referenceUrls') {
+          // 改行で分割して配列にする
+          const urls = answer.split('\n').filter(url => url.trim())
+          (updatedInfo.basicInfo as any)[key] = urls
+        } else {
+          (updatedInfo.basicInfo as any)[key] = answer
+        }
       }
     } else {
       // 他のサイトタイプ用の既存ロジック
