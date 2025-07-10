@@ -1,6 +1,7 @@
 const { WebClient } = require('@slack/web-api');
+require('dotenv').config({ path: '.env.local' });
 
-const token = process.env.SLACK_BOT_TOKEN || 'your-bot-token-here';
+const token = process.env.SLACK_BOT_TOKEN;
 const channelId = process.env.SLACK_CHANNEL_ID || 'C08GWS8N24U';
 const slack = new WebClient(token);
 
