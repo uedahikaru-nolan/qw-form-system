@@ -46,6 +46,35 @@ export async function POST(request: NextRequest) {
         // 会社名を取得（優先順位: 会社名 > ご担当者名 > お名前）
         const companyName = formData['会社名'] || formData['ご担当者名'] || formData['お名前'] || formData['ご担当者様のお名前'] || '未入力'
         
+        // フォーム内容から重要な情報を抽出
+        const extractFormInfo = (content: string) => {
+          const info = {
+            companyName: formData['会社名'] || '未入力',
+            contactName: formData['ご担当者名'] || formData['ご担当者様のお名前'] || '未入力',
+            email: formData['メールアドレス'] || '未入力',
+            phone: formData['電話番号'] || '未入力',
+            siteType: formData['サイトタイプ'] || '未指定',
+            industry: formData['業種'] || '未指定',
+            concept: '',
+            vmv: '',
+            referenceUrls: [] as string[]
+          }
+          
+          // コンセプトやVMVを抽出
+          if (content.includes('コンセプト') || content.includes('想い') || content.includes('理念')) {
+            const conceptMatch = content.match(/(?:コンセプト|想い|理念).*?[:：]\s*(.+?)(?=\n|$)/i)
+            if (conceptMatch) info.concept = conceptMatch[1].trim()
+          }
+          
+          // 参考URLを抽出
+          const urlMatches = content.match(/https?:\/\/[^\s\n]+/g)
+          if (urlMatches) info.referenceUrls = urlMatches
+          
+          return info
+        }
+        
+        const formInfo = extractFormInfo(content)
+        
         // メインメッセージを送信
         try {
           const mainMessage = await slack.chat.postMessage({
@@ -53,10 +82,18 @@ export async function POST(request: NextRequest) {
             text: `<!channel> 【${companyName}】様よりフォームが入力されました！`,
             blocks: [
               {
+                type: 'header',
+                text: {
+                  type: 'plain_text',
+                  text: `🎯 【${companyName}】様よりフォームが入力されました！`,
+                  emoji: true
+                }
+              },
+              {
                 type: 'section',
                 text: {
                   type: 'mrkdwn',
-                  text: `<!channel> 【${companyName}】様よりフォームが入力されました！`
+                  text: `<!channel> 新しいホームページ作成のご相談をいただきました。`
                 }
               },
               {
@@ -64,19 +101,51 @@ export async function POST(request: NextRequest) {
                 fields: [
                   {
                     type: 'mrkdwn',
-                    text: `*📅 送信日時*\n${new Date().toLocaleString('ja-JP')}`
+                    text: `*🏢 会社名*\n${formInfo.companyName}`
                   },
                   {
                     type: 'mrkdwn',
-                    text: `*🌐 サイトタイプ*\n${formData['サイトタイプ'] || formData['サイト種別'] || '未指定'}`
+                    text: `*👤 ご担当者*\n${formInfo.contactName}`
+                  },
+                  {
+                    type: 'mrkdwn',
+                    text: `*📧 メール*\n${formInfo.email}`
+                  },
+                  {
+                    type: 'mrkdwn',
+                    text: `*📞 電話*\n${formInfo.phone}`
+                  },
+                  {
+                    type: 'mrkdwn',
+                    text: `*🌐 サイトタイプ*\n${formInfo.siteType}`
+                  },
+                  {
+                    type: 'mrkdwn',
+                    text: `*🏭 業種*\n${formInfo.industry}`
                   }
                 ]
               },
+              // コンセプトがある場合は表示
+              ...(formInfo.concept ? [{
+                type: 'section' as const,
+                text: {
+                  type: 'mrkdwn' as const,
+                  text: `*💡 コンセプト・想い*\n${formInfo.concept}`
+                }
+              }] : []),
+              // 参考URLがある場合は表示
+              ...(formInfo.referenceUrls.length > 0 ? [{
+                type: 'section' as const,
+                text: {
+                  type: 'mrkdwn' as const,
+                  text: `*🔗 参考URL*\n${formInfo.referenceUrls.slice(0, 3).map(url => `• ${url}`).join('\n')}`
+                }
+              }] : []),
               {
                 type: 'section',
                 text: {
                   type: 'mrkdwn',
-                  text: `*👤 お客様*: ${formData['会社名'] || formData['ご担当者名'] || formData['お名前'] || formData['ご担当者様のお名前'] || '未入力'}\n*📧 メール*: ${formData['メールアドレス'] || formData['email'] || '未入力'}`
+                  text: `*📅 送信日時*: ${new Date().toLocaleString('ja-JP')}`
                 }
               },
               {
@@ -103,16 +172,21 @@ export async function POST(request: NextRequest) {
           if (mainMessage.ok && mainMessage.ts) {
             console.log('Posting thread message with ts:', mainMessage.ts)
             
+            // AIの分析結果とチャット履歴を分離
+            const sections = content.split('=== チャット履歴 ===')
+            const aiAnalysis = sections[0] || ''
+            const chatHistory = sections[1] || ''
+            
             const threadMessage = await slack.chat.postMessage({
               channel: process.env.SLACK_CHANNEL_ID,
               thread_ts: mainMessage.ts,
-              text: 'フォーム詳細内容',
+              text: 'AI分析結果と技術的詳細',
               blocks: [
                 {
                   type: 'header',
                   text: {
                     type: 'plain_text',
-                    text: '📋 フォーム詳細内容',
+                    text: '🤖 AI分析結果・技術的詳細',
                     emoji: true
                   }
                 },
@@ -120,8 +194,40 @@ export async function POST(request: NextRequest) {
                   type: 'section',
                   text: {
                     type: 'mrkdwn',
-                    text: `\`\`\`${content}\`\`\``
+                    text: '*AIによる分析結果*'
                   }
+                },
+                {
+                  type: 'section',
+                  text: {
+                    type: 'mrkdwn',
+                    text: `\`\`\`${aiAnalysis.trim()}\`\`\``
+                  }
+                },
+                ...(chatHistory ? [
+                  {
+                    type: 'section' as const,
+                    text: {
+                      type: 'mrkdwn' as const,
+                      text: '*チャット履歴*'
+                    }
+                  },
+                  {
+                    type: 'section' as const,
+                    text: {
+                      type: 'mrkdwn' as const,
+                      text: `\`\`\`${chatHistory.trim()}\`\`\``
+                    }
+                  }
+                ] : []),
+                {
+                  type: 'context',
+                  elements: [
+                    {
+                      type: 'mrkdwn',
+                      text: '💡 この詳細情報は開発・分析用です。お客様対応時は上記のメイン情報をご参照ください。'
+                    }
+                  ]
                 }
               ]
             })
