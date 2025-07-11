@@ -123,6 +123,24 @@ function SummaryPageContent() {
 
 
   const handleProceed = async () => {
+    // 確認ダイアログを表示
+    const confirmed = window.confirm(
+      'メールを送信します。\n\n' +
+      '【送信内容】\n' +
+      '• お客様の基本情報（会社名、ご担当者名、連絡先）\n' +
+      '• ホームページのご要望内容\n' +
+      '• AIによる分析結果と提案内容\n' +
+      '• チャット履歴\n\n' +
+      '送信先：\n' +
+      '• 担当者へ通知メール\n' +
+      '• お客様へ確認メール\n\n' +
+      'よろしいですか？'
+    )
+    
+    if (!confirmed) {
+      return
+    }
+    
     setIsProcessing(true)
     
     try {
@@ -348,35 +366,59 @@ function SummaryPageContent() {
               </svg>
               チャットに戻る
             </button>
-            
-            <button
-              onClick={handleProceed}
-              disabled={isProcessing}
-              className={`w-full md:w-auto px-6 md:px-8 py-3 rounded-lg flex items-center justify-center gap-2 font-semibold transition-all text-sm md:text-base ${
-                isProcessing 
-                  ? 'bg-gray-400 cursor-not-allowed' 
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
-              }`}
-            >
-              {isProcessing ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  送信中...
-                </>
-              ) : (
-                <>
-                  メールで送信する
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                </>
-              )}
-            </button>
           </div>
         </div>
 
-        <div className="mt-4 md:mt-6 text-center text-xs md:text-sm text-gray-500 px-4">
-          ※ メールにはAIが整理した情報と提案内容が含まれます
+        {/* Floating Action Button for Email Send */}
+        <div className="fixed bottom-6 right-6 z-40 group">
+          <button
+            onClick={handleProceed}
+            disabled={isProcessing}
+            className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-110 ${
+              isProcessing 
+                ? 'bg-gray-400 cursor-not-allowed' 
+                : 'bg-blue-600 hover:bg-blue-700'
+            }`}
+            title="メールで送信する"
+          >
+            {isProcessing ? (
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+            ) : (
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            )}
+          </button>
+          
+          {/* Tooltip label that appears on hover */}
+          <div className="absolute bottom-0 right-full mr-3 mb-3 bg-gray-800 text-white px-3 py-2 rounded-lg text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+            メールで送信する
+          </div>
+        </div>
+
+        {/* メール送信の説明 - デスクトップのみ表示 */}
+        <div className="hidden md:block fixed bottom-24 right-6 z-30 bg-white rounded-lg shadow-md p-4 max-w-xs border border-gray-200">
+          <h4 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
+            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            メール送信について
+          </h4>
+          <p className="text-sm text-gray-600 mb-2">
+            右下のボタンをクリックすると、以下の内容でメールが送信されます：
+          </p>
+          <ul className="text-xs text-gray-500 space-y-1">
+            <li>• 担当者への通知メール</li>
+            <li>• お客様への確認メール</li>
+            <li>• AIによる分析・提案内容</li>
+          </ul>
+        </div>
+        
+        {/* モバイル用のメール送信説明 */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-30">
+          <p className="text-xs text-gray-600 text-center">
+            右下のボタンをタップすると、担当者への通知とお客様への確認メールが送信されます
+          </p>
         </div>
       </div>
     </div>
