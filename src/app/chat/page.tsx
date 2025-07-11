@@ -455,13 +455,13 @@ function ChatPageContent() {
       ]
       
       if (hpQuestionKeys[questionIndex]) {
-        const key = hpQuestionKeys[questionIndex] as keyof typeof updatedInfo.basicInfo
+        const key = hpQuestionKeys[questionIndex]
         
         // referenceUrlsは配列として処理
         if (key === 'referenceUrls') {
           // 改行で分割して配列にする
-          const urls = answer.split('\n').filter(url => url.trim())
-          (updatedInfo.basicInfo as any)[key] = urls
+          const urlArray = answer.split('\n').map(line => line.trim()).filter(line => line !== '')
+          ;(updatedInfo.basicInfo as any)[key] = urlArray
         } else {
           (updatedInfo.basicInfo as any)[key] = answer
         }
