@@ -6,17 +6,19 @@ export async function POST(request: NextRequest) {
   try {
     const { to, content, isAdmin } = await request.json()
     
-    // 開発環境では、コンソールに出力
-    console.log('=== メール送信内容 ===')
-    console.log('宛先:', to)
-    console.log('管理者メール:', isAdmin)
-    console.log('内容:')
-    console.log(content)
-    console.log('======================')
+    // 環境変数のデバッグログ
+    console.log('Environment check:', {
+      hasSlackToken: !!process.env.SLACK_BOT_TOKEN,
+      hasSlackChannel: !!process.env.SLACK_CHANNEL_ID,
+      hasResendKey: !!process.env.RESEND_API_KEY,
+      hasOpenAIKey: !!process.env.OPENAI_API_KEY,
+      slackTokenPrefix: process.env.SLACK_BOT_TOKEN?.substring(0, 10) + '...',
+      slackChannelId: process.env.SLACK_CHANNEL_ID
+    })
     
-    // 開発環境でテストモードの場合はメール送信をスキップ
-    if (process.env.NODE_ENV === 'development' && process.env.SKIP_EMAIL === 'true') {
-      console.log('開発環境でSKIP_EMAIL=trueのため、メール送信をスキップしました')
+    // SKIPが有効な場合は処理をスキップ
+    if (process.env.SKIP_EMAIL === 'true') {
+      console.log('Email sending is skipped (SKIP_EMAIL=true)')
       return NextResponse.json({ success: true, skipped: true })
     }
     
@@ -57,35 +59,97 @@ export async function POST(request: NextRequest) {
             industry: formData['業種'] || '未指定',
             concept: '',
             vmv: '',
-            referenceUrls: [] as string[]
+            pages: [] as string[],
+            targetAudience: '',
+            requests: ''
           }
           
-          // コンセプトやVMVを抽出
-          if (content.includes('コンセプト') || content.includes('想い') || content.includes('理念')) {
-            const conceptMatch = content.match(/(?:コンセプト|想い|理念).*?[:：]\s*(.+?)(?=\n|$)/i)
-            if (conceptMatch) info.concept = conceptMatch[1].trim()
+          // コンセプトの詳細を取得
+          const conceptMatch = content.match(/希望するサイトのコンセプト[：:]\s*(.+?)(?=\n|$)/s)
+          if (conceptMatch) {
+            info.concept = conceptMatch[1].trim()
           }
           
-          // 参考URLを抽出
-          const urlMatches = content.match(/https?:\/\/[^\s\n]+/g)
-          if (urlMatches) info.referenceUrls = urlMatches
+          // ビジョン・ミッション・バリューを取得
+          const vmvMatch = content.match(/ビジョン・ミッション・バリュー[：:]\s*(.+?)(?=\n\S|$)/s)
+          if (vmvMatch) {
+            info.vmv = vmvMatch[1].trim()
+          }
+          
+          // 必要なページを取得
+          const pagesMatch = content.match(/必要なページ[：:]\s*(.+?)(?=\n\S|$)/s)
+          if (pagesMatch) {
+            info.pages = pagesMatch[1].split(/[、,]/).map(p => p.trim()).filter(p => p)
+          }
+          
+          // ターゲット層を取得
+          const targetMatch = content.match(/ターゲット層[：:]\s*(.+?)(?=\n|$)/)
+          if (targetMatch) {
+            info.targetAudience = targetMatch[1].trim()
+          }
+          
+          // その他の要望を取得
+          const requestsMatch = content.match(/その他の要望[：:]\s*(.+?)(?=\n\S|$)/s)
+          if (requestsMatch) {
+            info.requests = requestsMatch[1].trim()
+          }
           
           return info
         }
         
         const formInfo = extractFormInfo(content)
         
-        // メインメッセージを送信
+        // AI分析コメントを生成
+        const generateAIComment = () => {
+          const comments = []
+          
+          // サイトタイプに基づくコメント
+          if (formInfo.siteType === 'HP') {
+            comments.push('📊 コーポレートサイトをご希望です。企業イメージとブランディングが重要になります。')
+          } else if (formInfo.siteType === 'EC') {
+            comments.push('🛒 ECサイトをご希望です。決済システムと在庫管理の実装が必要です。')
+          } else if (formInfo.siteType === 'LP') {
+            comments.push('🎯 ランディングページをご希望です。コンバージョン率を重視した設計が求められます。')
+          }
+          
+          // ページ数に基づくコメント
+          if (formInfo.pages.length > 0) {
+            if (formInfo.pages.length <= 5) {
+              comments.push(`📄 ${formInfo.pages.length}ページ構成のコンパクトなサイトです。`)
+            } else if (formInfo.pages.length <= 10) {
+              comments.push(`📚 ${formInfo.pages.length}ページ構成の中規模サイトです。`)
+            } else {
+              comments.push(`📖 ${formInfo.pages.length}ページ以上の大規模サイトです。`)
+            }
+          }
+          
+          // その他の要望に基づくコメント
+          if (formInfo.requests.includes('レスポンシブ')) {
+            comments.push('📱 レスポンシブ対応を希望されています。モバイルファーストの設計が重要です。')
+          }
+          if (formInfo.requests.includes('多言語')) {
+            comments.push('🌍 多言語対応を希望されています。国際化の実装が必要です。')
+          }
+          
+          return comments.join('\n')
+        }
+        
+        const aiAnalysis = generateAIComment()
+        
+        // チャット履歴を取得（もしあれば）
+        const chatHistory = (formData['チャット履歴'] || '').trim()
+        
         try {
+          // メインメッセージを投稿
           const mainMessage = await slack.chat.postMessage({
             channel: process.env.SLACK_CHANNEL_ID,
-            text: `<!channel> 【${companyName}】様よりフォームが入力されました！`,
+            text: `新規お問い合わせ: ${companyName}様`,
             blocks: [
               {
                 type: 'header',
                 text: {
                   type: 'plain_text',
-                  text: `🎯 【${companyName}】様よりフォームが入力されました！`,
+                  text: '🎉 新規お問い合わせが届きました！',
                   emoji: true
                 }
               },
@@ -93,8 +157,11 @@ export async function POST(request: NextRequest) {
                 type: 'section',
                 text: {
                   type: 'mrkdwn',
-                  text: `<!channel> 新しいホームページ作成のご相談をいただきました。`
+                  text: `<!channel> *${companyName}様* からお問い合わせです`
                 }
+              },
+              {
+                type: 'divider'
               },
               {
                 type: 'section',
@@ -113,7 +180,7 @@ export async function POST(request: NextRequest) {
                   },
                   {
                     type: 'mrkdwn',
-                    text: `*📞 電話*\n${formInfo.phone}`
+                    text: `*📞 電話番号*\n${formInfo.phone}`
                   },
                   {
                     type: 'mrkdwn',
@@ -125,27 +192,11 @@ export async function POST(request: NextRequest) {
                   }
                 ]
               },
-              // コンセプトがある場合は表示
-              ...(formInfo.concept ? [{
-                type: 'section' as const,
-                text: {
-                  type: 'mrkdwn' as const,
-                  text: `*💡 コンセプト・想い*\n${formInfo.concept}`
-                }
-              }] : []),
-              // 参考URLがある場合は表示
-              ...(formInfo.referenceUrls.length > 0 ? [{
-                type: 'section' as const,
-                text: {
-                  type: 'mrkdwn' as const,
-                  text: `*🔗 参考URL*\n${formInfo.referenceUrls.slice(0, 3).map(url => `• ${url}`).join('\n')}`
-                }
-              }] : []),
               {
                 type: 'section',
                 text: {
                   type: 'mrkdwn',
-                  text: `*📅 送信日時*: ${new Date().toLocaleString('ja-JP')}`
+                  text: `*💡 希望コンセプト*\n${formInfo.concept || '記載なし'}`
                 }
               },
               {
@@ -155,28 +206,21 @@ export async function POST(request: NextRequest) {
                     type: 'button',
                     text: {
                       type: 'plain_text',
-                      text: 'Notionで詳細を確認',
+                      text: '📋 対応開始',
                       emoji: true
                     },
-                    url: 'https://www.notion.so/2185b8517dea80e8a10ec20da021e84d?v=2185b8517dea80c5adfe000c2b228e85&source=copy_link',
-                    style: 'primary'
+                    style: 'primary',
+                    value: 'start_response'
                   }
                 ]
               }
             ]
           })
           
-          console.log('Main message sent:', mainMessage.ok ? 'Success' : 'Failed')
+          console.log('Main message posted:', mainMessage.ts)
           
-          // スレッドに詳細内容を投稿
-          if (mainMessage.ok && mainMessage.ts) {
-            console.log('Posting thread message with ts:', mainMessage.ts)
-            
-            // AIの分析結果とチャット履歴を分離
-            const sections = content.split('=== チャット履歴 ===')
-            const aiAnalysis = sections[0] || ''
-            const chatHistory = sections[1] || ''
-            
+          // スレッドに詳細情報を投稿
+          if (mainMessage.ts) {
             const threadMessage = await slack.chat.postMessage({
               channel: process.env.SLACK_CHANNEL_ID,
               thread_ts: mainMessage.ts,
@@ -232,107 +276,50 @@ export async function POST(request: NextRequest) {
               ]
             })
             
-            console.log('Thread message sent:', threadMessage.ok ? 'Success' : 'Failed')
-            console.log('Slack通知送信成功（メインメッセージとスレッドに投稿）')
-          } else {
-            console.error('Failed to send main message or get timestamp')
+            console.log('Thread message posted:', threadMessage.ts)
           }
-        } catch (apiError: any) {
-          console.error('Slack API Error:', apiError.message)
-          if (apiError.data) {
-            console.error('Error details:', apiError.data)
-          }
-          throw apiError
+          
+          console.log('✅ Successfully sent to Slack')
+        } catch (slackError: any) {
+          console.error('Slack API error:', slackError)
+          console.error('Slack error details:', {
+            message: slackError.message,
+            data: slackError.data,
+            code: slackError.code
+          })
+          throw slackError
         }
-      } catch (slackError) {
-        console.error('Slack送信エラー:', slackError)
-        // Slackエラーでもメール送信は続行
+      } catch (error: any) {
+        console.error('Slack notification error:', error)
+        console.error('Error stack:', error.stack)
+        // Slackエラーでも処理を続行
       }
     }
     
-    // Resend APIキーが設定されている場合のみメール送信
-    if (process.env.RESEND_API_KEY) {
-      console.log('Resend API key found, attempting to send email...')
-      const resend = new Resend(process.env.RESEND_API_KEY)
-      
-      const emailConfig = isAdmin ? {
-        from: 'AIサイト作成フォーム <onboarding@resend.dev>',
-        to: to.includes(',') ? to.split(',').map((email: string) => email.trim()) : [to],
-        subject: `【AIサイト作成フォーム】新規送信内容 - ${new Date().toLocaleDateString('ja-JP')}`,
-        text: content,
-        html: `
-          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #333;">AIサイト作成フォーム 送信内容</h2>
-            <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px;">
-              <pre style="font-family: monospace; white-space: pre-wrap; margin: 0;">${content}</pre>
-            </div>
-            <p style="color: #666; font-size: 12px; margin-top: 20px;">
-              このメールは自動送信されました。
-            </p>
-          </div>
-        `
-      } : {
-        from: 'AIサイト作成フォーム <onboarding@resend.dev>',
-        to: to.includes(',') ? to.split(',').map((email: string) => email.trim()) : [to],
-        subject: 'AIサイト作成フォーム - お申し込みありがとうございます',
-        text: content,
-        html: `
-          <div style="font-family: 'Hiragino Sans', 'メイリオ', sans-serif; max-width: 600px; margin: 0 auto; line-height: 1.7;">
-            <div style="background-color: #1e40af; padding: 30px; text-align: center;">
-              <h1 style="color: white; margin: 0; font-size: 24px;">AIサイト作成サービス</h1>
-            </div>
-            
-            <div style="padding: 40px 30px; background-color: #f8f9fa;">
-              <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <h2 style="color: #1e40af; margin-bottom: 20px;">お申し込みありがとうございます</h2>
-                
-                <div style="margin-bottom: 30px;">
-                  <pre style="font-family: 'Hiragino Sans', 'メイリオ', sans-serif; white-space: pre-wrap; margin: 0; line-height: 1.7;">${content}</pre>
-                </div>
-                
-                <div style="background-color: #fef3c7; padding: 20px; border-radius: 8px; margin-top: 30px;">
-                  <p style="margin: 0; color: #92400e; font-weight: bold;">
-                    📌 完成まで今しばらくお待ちください
-                  </p>
-                </div>
-              </div>
-              
-              <p style="text-align: center; color: #6b7280; font-size: 12px; margin-top: 20px;">
-                このメールは自動送信されています。<br>
-                ご不明な点がございましたら、このメールに返信してお問い合わせください。
-              </p>
-            </div>
-          </div>
-        `
-      }
-      
-      const { data, error } = await resend.emails.send(emailConfig)
-      
-      if (error) {
-        console.error('Resend error:', error)
-        console.error('Error details:', JSON.stringify(error, null, 2))
-        throw error
-      }
-      
-      console.log('メール送信成功:', data)
-    } else {
-      console.log('RESEND_API_KEYが設定されていないため、メール送信をスキップしました')
+    // Resend APIを使用してメール送信
+    if (!process.env.RESEND_API_KEY) {
+      console.error('RESEND_API_KEY is not set')
+      throw new Error('Email service not configured')
     }
     
-    return NextResponse.json({ success: true })
+    const resend = new Resend(process.env.RESEND_API_KEY)
+    
+    const { data, error } = await resend.emails.send({
+      from: 'onboarding@resend.dev',
+      to: [to],
+      subject: isAdmin ? '新しいお問い合わせがありました' : 'お問い合わせありがとうございます',
+      text: content,
+    })
+
+    if (error) {
+      console.error('Resend error:', error)
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
+
+    return NextResponse.json({ success: true, emailId: data?.id })
   } catch (error: any) {
-    console.error('Email send error:', error)
-    console.error('Error message:', error.message)
+    console.error('Error in send-email:', error)
     console.error('Error stack:', error.stack)
-    
-    // エラーの詳細をクライアントに返す（開発環境のみ）
-    const errorMessage = process.env.NODE_ENV === 'development' 
-      ? error.message || 'Failed to send email'
-      : 'Failed to send email'
-    
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to send email' }, { status: 500 })
   }
 }
